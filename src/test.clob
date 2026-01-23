@@ -1,8 +1,15 @@
 dkjhfs
 
-<Preload>
+<Data>
 38 -int8-> x
 "run" -string-> y
-<Preload>
+<Data>
+
+<Bss>
+-int8-> j
+-30-> h
+-float-> s
+<Bss>
+
 
 sdf

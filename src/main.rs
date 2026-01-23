@@ -1,5 +1,6 @@
 mod modules;
-use crate::modules::data::data_from_cont;
+use crate::modules::data::{DataBlock, data_from_cont};
+use crate::modules::bss::{Bss, bss_from_cont};
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -24,26 +25,31 @@ fn main() -> std::io::Result<()> {
 	let outname = &filename[..filename.len()-5];
 	/* If previous checks were passed we can now read the file contents */
 	let contents: String = fs::read_to_string(filename)?;
-	//let contents: String = "jkshdf <Preload> 2 -int8-> x\n 'run' -string-> y\n <Preload> jdf".to_owned();
-	let datastring = data_from_cont(contents).unwrap();
+	let mut initdata: DataBlock = data_from_cont(contents.clone()).unwrap();
+	let datastring = initdata.DataString.clone();
+
+	let bssdata: Bss = bss_from_cont(contents.clone(), &mut initdata).unwrap();
+	let bssstring = bssdata.BssString;
  
 	/* We should do this at the end to avoid holding up more memory. */
-	let mut prestring: String = ".intel_syntax no_prefix\n\n".to_owned();
+	/* Also pass extern functions to prestring */ 
+	let mut prestring: String = ".intel_syntax noprefix\n\n".to_owned();
 	let teststring: &str = "\n.global _start\n_start:\n";     
-	let closerstring: &str = "	mov rax, 60\n	xor rdi, rdi\n	syscall";
+	let closerstring: &str = "	mov rax, 60\n	xor rdi, rdi\n	syscall\n";
 
 	prestring += &datastring;
+	prestring += &bssstring;
 	prestring += teststring;
 	let assembly = prestring + closerstring;
-
-	println!("Current dir {:?}", env::current_dir()?);
 
 	let assemblyname: &str = &format!("{}.s", outname);
 	let mut file = File::create(assemblyname)?;
 	file.write_all(assembly.as_bytes())?;
 	
+	for (key, value) in &initdata.DataLookup {
+		println!("{}, {}", key, value);
+	}	
 	file.flush()?;
 
-	println!("File should be at {:?}", std::fs::canonicalize(assemblyname)?);
 	Ok(())
 }
